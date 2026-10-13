@@ -1983,7 +1983,7 @@
         const baseAmount = getRandomByWeight(baseRedLossTable).amount;
 
         const RedLoss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
-        curPlayer.money -= Redloss;
+        curPlayer.money -= RedLoss;
         msg.innerText += " 👉 赤マス！${redloss}万円 損した…";
       } else if (tile.type === "yellow") {
         const newCard = drawRandomCard();
