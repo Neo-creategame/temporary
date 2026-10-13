@@ -1076,22 +1076,31 @@
         return;
       }
 
-      status.innerText = "接続中...";
+      status.innerText = "シグナリングサーバーに接続中...";
       peer = new Peer();
 
-      peer.on('open', () => {
+      peer.on('open', (myId) => {
+        status.innerText = "ホストへ接続中...";
         const conn = peer.connect(roomId);
         connections = [conn];
 
         conn.on('open', () => {
-          status.innerText = "接続成功！ホストからの開始を待っています...";
+          status.innerText = "接続成功！ホストからの開始データを待っています...";
         });
 
-        conn.on('data', (data) => handleRemoteData(data));
+    // 🌟 ホストからの受信データを正しくパケット処理する場所
+        conn.on('data', (data) => {
+          handleRemoteData(data);
+        });
+
+        conn.on('close', () => {
+          alert("ホストとの接続が切断されました。");
+        });
       });
 
       peer.on('error', (err) => {
-        status.innerText = "接続エラー: 部屋IDを確認してください。";
+        console.error("PeerJS Error:", err);
+        status.innerText = `接続エラー: ${err.type} (部屋IDを確認してください)`;
       });
     }
 
