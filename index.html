@@ -1974,10 +1974,10 @@
         msg.innerText += " 👉 青マス！500万円 GET！";
       } else if (tile.type === "red") {
         const baseRedLossTable = [
-          { amount: 100, weight: 45 }, // 45%
-          { amount: 200, weight: 35 }, // 35%
-          { amount: 400, weight: 15 }, // 15%
-          { amount: 800, weight: 5  }  // 5%
+          { amount: 300, weight: 45 }, // 45%
+          { amount: 500, weight: 35 }, // 35%
+          { amount: 800, weight: 15 }, // 15%
+          { amount: 10000, weight: 5  }  // 5%
         ];
 
         const baseAmount = getRandomByWeight(baseRedLossTable).amount;
