@@ -874,15 +874,32 @@
     });
 
     const CARD_TYPES = {
-      EXPRESS: { id: "express", name: "急行カード", diceCount: 2, desc: "サイコロを2個振れる！", weight: 0 },//30
+      EXPRESS: { id: "express", name: "急行カード", diceCount: 2, desc: "サイコロを2個振れる！", weight: 30 },//30
       SHINKANSEN: { id: "shinkansen", name: "新幹線カード", diceCount: 3, desc: "サイコロを3個振れる！", weight: 8 },//8
       LINEAR: { id: "linear", name: "リニアカード", diceCount: 4, desc: "サイコロを4個振れる！", weight: 2 },//2
-      FLY: { id: "fly", name: "ぶっとびカード", desc: "全国のどこかのマスへランダムでぶっとぶ！", weight: 70 },//10
+      FLY: { id: "fly", name: "ぶっとびカード", desc: "全国のどこかのマスへランダムでぶっとぶ！", weight: 10 },//10
       TAKEOVER: { id: "takeover", name: "乗っ取りカード", desc: "他プレイヤーの物件を1つ横取りする！", weight: 5 },//5
-      TOKUSEI: { id: "tokusei", name: "徳政令カード", desc: "全員のマイナス所持金を0円に戻す！", weight: 0 },//10
+      TOKUSEI: { id: "tokusei", name: "徳政令カード", desc: "全員のマイナス所持金を0円に戻す！", weight: 10 },//10
       OHARAI: { id: "oharai", name: "おはらいカード", desc: "自分に取り憑いている貧乏神を消し去る！", weight: 5 },//5
-      BONBY: { id: "bonby", name: "ボンビーカード", diceCount: 1, desc: "【危険】使うと自分に貧乏神が取り憑く！", weight: 0 },//30
+      BONBY: { id: "bonby", name: "ボンビーカード", diceCount: 1, desc: "【危険】使うと自分に貧乏神が取り憑く！", weight: 30 },//30
     };
+
+    // 重み（weight）付き抽選を行う汎用ヘルパー関数
+    function getRandomByWeight(items) {
+      const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+      let randomNum = Math.floor(Math.random() * totalWeight);
+
+      for (const item of items) {
+        if (randomNum < item.weight) return item;
+        randomNum -= item.weight;
+      }
+      return items[0];
+    }
+
+    // 年数に応じたインフレ倍率を取得する関数（例: 1年目=1.0倍, 2年目=1.5倍, 3年目=2.0倍...）
+    function getInflationMultiplier() {
+      return 1 + (currentYear - 1) * 0.5;
+    }
 
     function drawRandomCard() {
       const cards = Object.values(CARD_TYPES);
@@ -1874,7 +1891,8 @@
     function checkDestinationGoal(tile) {
       const curPlayer = getCurrentPlayer();
       if (tile && tile.id === destinationId) {
-        const prizeMoney = 5000;
+        const prizeMoney = Math.max(100, Math.round((5000 * getInflationMultiplier()) / 100) * 100);
+        
         curPlayer.money += prizeMoney;
         
         let bonbyMsg = "";
@@ -1901,15 +1919,25 @@
         { 
           name: "宝くじ当選！", 
           effect: () => { 
-            player.money += 1000; 
+            const prize = Math.round(1000 * getInflationMultiplier());
+            player.money += prize; 
             alert(`🎉 ${player.name} は宝くじで1000万円当たった！`); 
           } 
         },
         { 
           name: "スリ被害…", 
           effect: () => { 
-            player.money = Math.max(0, player.money - 500); 
-            alert(`💸 ${player.name} は500万円スられた！`); 
+            const baseLossTable = [
+              { amount: 300, weight: 50 }, // 50%
+              { amount: 500, weight: 34 }, // 30%
+              { amount: 1000, weight: 13 }, // 15%
+              { amount: 100000, weight: 3  }  // 5%
+            ];
+            const baseAmount = getRandomByWeight(baseLossTable).amount;
+            const loss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
+            
+            player.money = Math.max(100, player.money - loss); 
+            alert(`💸 ${player.name} は${loss}万円スられた！`); 
           } 
         },
         { 
@@ -1945,8 +1973,18 @@
         curPlayer.money += 500;
         msg.innerText += " 👉 青マス！500万円 GET！";
       } else if (tile.type === "red") {
-        curPlayer.money -= 300;
-        msg.innerText += " 👉 赤マス！300万円 損した…";
+        const baseRedLossTable = [
+          { amount: 100, weight: 45 }, // 45%
+          { amount: 200, weight: 35 }, // 35%
+          { amount: 400, weight: 15 }, // 15%
+          { amount: 800, weight: 5  }  // 5%
+        ];
+
+        const baseAmount = getRandomByWeight(baseRedLossTable).amount;
+
+        const redLoss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
+        curPlayer.money -= redloss;
+        msg.innerText += " 👉 赤マス！${redloss}万円 損した…";
       } else if (tile.type === "yellow") {
         const newCard = drawRandomCard();
         if (newCard.id === "bonby") {
