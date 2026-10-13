@@ -1973,18 +1973,22 @@
         curPlayer.money += 500;
         msg.innerText += " 👉 青マス！500万円 GET！";
       } else if (tile.type === "red") {
+        ｋ
         const baseRedLossTable = [
-          { amount: 300, weight: 45 }, // 45%
-          { amount: 500, weight: 35 }, // 35%
-          { amount: 800, weight: 15 }, // 15%
-          { amount: 10000, weight: 5  }  // 5%
+          { amount: 300, weight: 45 },   // 45%
+          { amount: 500, weight: 35 },   // 35%
+          { amount: 800, weight: 15 },   // 15%
+          { amount: 10000, weight: 5 }   // 5% (10000万円 = 1億円)
         ];
 
         const baseAmount = getRandomByWeight(baseRedLossTable).amount;
 
-        const RedLoss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
-        curPlayer.money -= RedLoss;
-        msg.innerText += ` 👉 赤マス！${RedLoss}万円 損した…`;
+  // 小文字の redLoss に統一
+        const redLoss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
+  
+        curPlayer.money -= redLoss;
+        msg.innerText += ` 👉 赤マス！${redLoss}万円 損した…`;
+      }
       } else if (tile.type === "yellow") {
         const newCard = drawRandomCard();
         if (newCard.id === "bonby") {
