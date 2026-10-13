@@ -398,8 +398,72 @@
       from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
       to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     }
+    /* --- 🎲 3Dサイコロモーダル＆アニメーション --- */
+    #dice-3d-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      flex-direction: column;
+    }
+
+    .dice-container {
+      width: 100px;
+      height: 100px;
+      perspective: 600px;
+      margin: 20px;
+    }
+
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 1.2s cubic-bezier(0.1, 0.8, 0.3, 1);
+    }
+
+    .cube-face {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      background: white;
+      border: 3px solid #333;
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: #333;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    /* サイコロの各面の配置 */
+    .face-1 { transform: rotateY(0deg) translateZ(50px); color: #e53935; font-size: 48px; } /* 1の目は赤く大きく */
+    .face-2 { transform: rotateY(90deg) translateZ(50px); }
+    .face-3 { transform: rotateX(-90deg) translateZ(50px); }
+    .face-4 { transform: rotateX(90deg) translateZ(50px); }
+    .face-5 { transform: rotateY(-90deg) translateZ(50px); }
+    .face-6 { transform: rotateY(180deg) translateZ(50px); }
+
+    .dice-wrapper {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+    }
   </style>
 </head>
+<!-- 🎲 3Dサイコロ演出用モーダル -->
+  <div id="dice-3d-modal">
+    <div id="dice-wrapper" class="dice-wrapper"></div>
+    <div id="dice-3d-text" style="color: white; font-size: 24px; font-weight: bold; margin-top: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+      サイコロを振っています…
+    </div>
+  </div>
 <body>
 
   <!-- オンライン/CPU設定用ロビー画面 -->
@@ -1466,23 +1530,102 @@
       await rollDiceInternal(diceCount);
     }
 
+    // 出目（1〜6）に応じた3D回転角度のマップ
+    const CUBE_ROTATIONS = {
+      1: { x: 0, y: 0 },
+      2: { x: 0, y: -90 },
+      3: { x: 90, y: 0 },
+      4: { x: -90, y: 0 },
+      5: { x: 0, y: 90 },
+      6: { x: 0, y: 180 }
+    };
+
     async function rollDiceInternal(diceCount = 1) {
       document.getElementById("dice-btn").disabled = true;
       document.getElementById("card-btn").disabled = true;
 
-      try{
+      try {
+        const curPlayer = getCurrentPlayer();
+        const modal = document.getElementById("dice-3d-modal");
+        const wrapper = document.getElementById("dice-wrapper");
+        const textEl = document.getElementById("dice-3d-text");
 
-      const diceResults = [];
-      for (let d = 0; d < diceCount; d++) {
-        diceResults.push(Math.floor(Math.random() * 6) + 1);
+        // サイコロエリアの初期化
+        wrapper.innerHTML = "";
+        textEl.innerText = `${curPlayer.name} がサイコロを振っています…`;
+        modal.style.display = "flex";
+
+        // 出目の決定
+        const diceResults = [];
+        for (let d = 0; d < diceCount; d++) {
+          diceResults.push(Math.floor(Math.random() * 6) + 1);
+        }
+
+        // 必要な数だけ3DサイコロElementを動的に生成
+        const cubeElements = [];
+        for (let i = 0; i < diceCount; i++) {
+          const container = document.createElement("div");
+          container.className = "dice-container";
+
+          const cube = document.createElement("div");
+          cube.className = "cube";
+          cube.innerHTML = `
+            <div class="cube-face face-1">●</div>
+            <div class="cube-face face-2">●<br>●</div>
+            <div class="cube-face face-3">●&nbsp;&nbsp;<br>&nbsp;●&nbsp;<br>&nbsp;&nbsp;●</div>
+            <div class="cube-face face-4">●&nbsp;●<br>●&nbsp;●</div>
+            <div class="cube-face face-5">●&nbsp;●<br>&nbsp;●&nbsp;<br>●&nbsp;●</div>
+            <div class="cube-face face-6">●&nbsp;●<br>●&nbsp;●<br>●&nbsp;●</div>
+          `;
+          container.appendChild(cube);
+          wrapper.appendChild(container);
+          cubeElements.push(cube);
+        }
+
+        // ちょっとだけ待ってから回転開始（DOM反映待ち）
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 各サイコロをランダムに多重回転させつつ、目的の出目の角度で止める
+        cubeElements.forEach((cube, idx) => {
+          const result = diceResults[idx];
+          const baseRot = CUBE_ROTATIONS[result];
+
+          // 3〜5回転（1080度〜1800度）ランダムに余計に回してダイナミック感を出す
+          const extraRotX = (Math.floor(Math.random() * 3) + 3) * 360;
+          const extraRotY = (Math.floor(Math.random() * 3) + 3) * 360;
+
+          const targetX = baseRot.x + extraRotX;
+          const targetY = baseRot.y + extraRotY;
+
+          cube.style.transform = `rotateX(${targetX}deg) rotateY(${targetY}deg)`;
+        });
+
+        // 回転アニメーションが終わるまで待つ（1.2秒）
+        await new Promise(resolve => setTimeout(resolve, 1300));
+
+        // 結果の計算とテキスト表示
+        const total = diceResults.reduce((a, b) => a + b, 0);
+        const resultText = (diceCount > 1) 
+          ? `🎲 [ ${diceResults.join(" + ")} ] = ${total} が出ました！` 
+          : `🎲 ${total} が出ました！`;
+
+        textEl.innerText = resultText;
+
+        // 結果を確認できるよう 0.8秒 画面に固定表示
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // モーダルを閉じる
+        modal.style.display = "none";
+
+        // 通信＆コマの移動処理へ移行
+        sendData('ACTION_ROLL_DICE', { diceCount, diceResults });
+        await executeDiceRoll(diceCount, diceResults);
+
+      } catch(e) {
+        console.error(e);
+        document.getElementById("dice-3d-modal").style.display = "none";
       }
-
-      sendData('ACTION_ROLL_DICE', { diceCount, diceResults });
-      await executeDiceRoll(diceCount, diceResults);
-    } catch(e) {
-      console.error(e);
     }
-  }
 
     // 最短距離（マス数）を計算する関数 (幅優先探索: BFS)
     function getDistanceToDestination(startTileId, targetTileId) {
@@ -1869,7 +2012,7 @@
 
     function switchTurn() {
       if (isGameOver) return;
-
+      isCpuProcessing = return;
       currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
 
       if (currentPlayerIndex === 0) {
@@ -1973,22 +2116,18 @@
         curPlayer.money += 500;
         msg.innerText += " 👉 青マス！500万円 GET！";
       } else if (tile.type === "red") {
-        ｋ
         const baseRedLossTable = [
-          { amount: 300, weight: 45 },   // 45%
-          { amount: 500, weight: 35 },   // 35%
-          { amount: 800, weight: 15 },   // 15%
-          { amount: 10000, weight: 5 }   // 5% (10000万円 = 1億円)
+          { amount: 100, weight: 45 }, // 45%
+          { amount: 200, weight: 35 }, // 35%
+          { amount: 400, weight: 15 }, // 15%
+          { amount: 800, weight: 5  }  // 5%
         ];
 
         const baseAmount = getRandomByWeight(baseRedLossTable).amount;
 
-  // 小文字の redLoss に統一
         const redLoss = Math.max(100, Math.round((baseAmount * getInflationMultiplier()) / 100) * 100);
-  
         curPlayer.money -= redLoss;
-        msg.innerText += ` 👉 赤マス！${redLoss}万円 損した…`;
-      }
+        msg.innerText += " 👉 赤マス！${redloss}万円 損した…";
       } else if (tile.type === "yellow") {
         const newCard = drawRandomCard();
         if (newCard.id === "bonby") {
